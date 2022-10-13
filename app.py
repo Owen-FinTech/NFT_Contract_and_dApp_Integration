@@ -7,6 +7,9 @@ import os
 import warnings
 from PIL import Image
 
+## Importing functions:
+from pinata import pin_artwork
+
 # If 'pip install stability-sdk' has errors try 'pip install stability-sdk --user':
 from stability_sdk import client
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
@@ -51,28 +54,44 @@ if generate_button:
                     "Please modify the prompt and try again.")
             if artifact.type == generation.ARTIFACT_IMAGE:
                 img = Image.open(io.BytesIO(artifact.binary))
+
+                ## Saving instance of image as bytes-like object:
+                img_byte_arr = io.BytesIO(artifact.binary)
+
                 st.image(img)
 
     # Getting the attributes:
     job_title_request = requests.get(job_title_url)
     job_title = job_title_request.json()
+    ## Title and strip ensures capitalization and no trailing spaces:
+    job_title = job_title.title().strip()
 
     planet_request = requests.get(planet_url)
     planet = planet_request.json()
+    ##
+    planet = planet.title().strip()
 
     alien_request = requests.get(alien_url)
     alien = alien_request.json()
+    ##
+    alien = alien.title().strip()
 
     language_request = requests.get(language_url)
     language = language_request.json()
+    ##
+    language = language.title().strip()
 
     teleportation_request = requests.get(teleportation_url)
     teleportation = teleportation_request.json()
+    ##
+    teleportation = teleportation.title().strip()
 
-    st.write(f"Name: {alien.capitalize()}")
+    ##
+    st.write(f"Name: {alien}")
     st.write(f"Description: {job_title}")
     st.write(f"Planet: {planet}")
-    st.write(f"Language: {language.capitalize()}")
+    ##
+    st.write(f"Language: {language}")
     st.write(f"Teleportation: {teleportation}")
 
 

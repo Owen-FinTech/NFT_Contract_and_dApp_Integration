@@ -16,7 +16,7 @@ contract AIAlienAnimals is ERC721Full {
         public 
         payable returns (uint256)
     {
-       require(msg.value < AIAlienAnimalsPrice, "Ether value sent is insufficient");
+       require(msg.value == AIAlienAnimalsPrice, "Ether value sent is incorrect");
         uint256 tokenId = totalSupply();
         _mint(owner, tokenId);
         _setTokenURI(tokenId, tokenURI);

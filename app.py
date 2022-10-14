@@ -6,9 +6,11 @@ import io
 import os
 import warnings
 from PIL import Image
+from pathlib import Path
+from web3 import Web3
 
 ## Importing functions:
-from pinata import pin_artwork
+from pinata import convert_data_to_json, pin_file_to_ipfs, pin_json_to_ipfs
 
 # If 'pip install stability-sdk' has errors try 'pip install stability-sdk --user':
 from stability_sdk import client
@@ -16,6 +18,32 @@ import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Define and connect a new Web3 provider
+w3 = Web3(Web3.HTTPProvider(os.getenv("WEB3_PROVIDER_URI")))
+
+# Load_Contract Function
+@st.cache(allow_output_mutation=True)
+def load_contract():
+
+    # Load the contract ABI
+    with open(Path('contract_abi.json')) as f:
+        contract_abi = json.load(f)
+
+    # Set the contract address (this is the address of the deployed contract)
+    contract_address = os.getenv("SMART_CONTRACT_ADDRESS")
+
+    # Get the contract
+    contract = w3.eth.contract(
+        address=contract_address,
+        abi=contract_abi
+    )
+
+    return contract
+
+
+# Load the contract
+contract = load_contract()
 
 # Job title, planet name, alien name, language name & teleportation name APIs:
 job_title_url = os.getenv("JOB_TITLE_URL") 
@@ -33,66 +61,161 @@ stability_api = client.StabilityInference(
     verbose=True,
 )
 
+
 # Heading:
 st.markdown("# AI Alien Animal NFT Generator")
 
-generate_button = st.button("Generate")
-
-if generate_button:
-
+def states():
+    # Initializing session states:
+    st.session_state.alien = None
+    st.session_state.img_byte_arr = None
+    st.session_state.job_title = None
+    st.session_state.planet = None
+    st.session_state.language = None
+    st.session_state.teleportation = None
+    st.session_state.the_image = None
+    st.session_state.receipt = None
+    st.session_state.artwork_ipfs_hash = None
+    st.session_state.token_json = None
+    st.session_state.resp = None
+    st.session_state.answers = None
+    st.session_state.artifact = None
+    
+def generate_alien():
     # The object returned is a python generator:
-    answers = stability_api.generate(
+    st.session_state.answers = stability_api.generate(
         prompt="A cute alien animal." 
     )
 
     # Iterating over the generator produces the api response:
-    for resp in answers:
-        for artifact in resp.artifacts:
-            if artifact.finish_reason == generation.FILTER:
+    for st.session_state.resp in st.session_state.answers:
+        for st.session_state.artifact in st.session_state.resp.artifacts:
+            if st.session_state.artifact.finish_reason == generation.FILTER:
                 warnings.warn(
                     "Your request activated the API's safety filters and could not be processed."
                     "Please modify the prompt and try again.")
-            if artifact.type == generation.ARTIFACT_IMAGE:
-                img = Image.open(io.BytesIO(artifact.binary))
+            if st.session_state.artifact.type == generation.ARTIFACT_IMAGE:
+                st.session_state.the_image = Image.open(io.BytesIO(st.session_state.artifact.binary))
 
-                ## Saving instance of image as bytes-like object:
-                img_byte_arr = io.BytesIO(artifact.binary)
+                st.session_state.the_image.save('result.png')
 
-                st.image(img)
+                # Saving instance of image as bytes-like object:
+                st.session_state.img_byte_arr = io.BytesIO(st.session_state.artifact.binary)
+    
+    return st.session_state.img_byte_arr, st.session_state.the_image
 
-    # Getting the attributes:
+def get_attributes():
+    # Getting the attributes: 
     job_title_request = requests.get(job_title_url)
     job_title = job_title_request.json()
-    ## Title and strip ensures capitalization and no trailing spaces:
-    job_title = job_title.title().strip()
+    # Title and strip ensures capitalization and no trailing spaces:
+    st.session_state.job_title = job_title.title().strip()
 
     planet_request = requests.get(planet_url)
     planet = planet_request.json()
-    ##
-    planet = planet.title().strip()
+    st.session_state.planet = planet.title().strip()
 
     alien_request = requests.get(alien_url)
     alien = alien_request.json()
-    ##
-    alien = alien.title().strip()
+    st.session_state.alien = alien.title().strip()
 
     language_request = requests.get(language_url)
     language = language_request.json()
-    ##
-    language = language.title().strip()
+    st.session_state.language = language.title().strip()
 
     teleportation_request = requests.get(teleportation_url)
     teleportation = teleportation_request.json()
-    ##
-    teleportation = teleportation.title().strip()
+    st.session_state.teleportation = teleportation.title().strip()
 
-    ##
-    st.write(f"Name: {alien}")
-    st.write(f"Description: {job_title}")
-    st.write(f"Planet: {planet}")
-    ##
-    st.write(f"Language: {language}")
-    st.write(f"Teleportation: {teleportation}")
+    return st.session_state.job_title, st.session_state.planet, st.session_state.alien, st.session_state.language, st.session_state.teleportation
+
+# Helper functions to pin files and json to Pinata
+def pin_artwork(alien, img_byte_arr, job_title, planet, language, teleportation):
+    
+    # Pin the file to IPFS with Pinata
+    ipfs_file_hash = pin_file_to_ipfs(img_byte_arr.getvalue())
+
+    # Build a token metadata file for the artwork
+    token_json = {
+        "name": alien,
+        "description": job_title,
+        "image": ipfs_file_hash,
+        "attributes": [
+            {
+            "trait_type": "Planet", 
+            "value": planet
+            }, 
+            {
+            "trait_type": "Language", 
+            "value": language
+            }, 
+            {
+            "trait_type": "Teleportation", 
+            "value": teleportation
+            }]}
+    json_data = convert_data_to_json(token_json)
+
+    # Pin the json to IPFS with Pinata
+    json_ipfs_hash = pin_json_to_ipfs(json_data)
+
+    return json_ipfs_hash, token_json
+
+def minting():
+    # Use the `pin_artwork` helper function to pin the file to IPFS
+    st.session_state.artwork_ipfs_hash, st.session_state.token_json = pin_artwork(
+        st.session_state.alien, st.session_state.img_byte_arr, 
+        st.session_state.job_title, st.session_state.planet,
+        st.session_state.language, st.session_state.teleportation)
+
+    artwork_uri = f"ipfs://{st.session_state.artwork_ipfs_hash}"
+
+    tx_hash = contract.functions.registerAIAA(
+        address,
+        artwork_uri
+    ).transact({'from': address, 'gas': 1000000, 'value': 10000000000000000})
+    st.session_state.receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+
+accounts = w3.eth.accounts
+address = st.selectbox("Select Your Account:", options=accounts)
+
+generate_button = st.button("Generate New NFT Preview")
+
+mint_nft = st.button("Mint This NFT (0.01 ETH + Gas)")
+
+if generate_button:
+    states()
+    generate_alien()
+    st.image('result.png')
+    get_attributes()
+    st.write(f"Name: {st.session_state.alien}")
+    st.write(f"Description: {st.session_state.job_title}")
+    st.write(f"Planet: {st.session_state.planet}")
+    st.write(f"Language: {st.session_state.language}")
+    st.write(f"Teleportation: {st.session_state.teleportation}")
+
+if mint_nft: 
+    st.image('result.png')
+    st.write(f"Name: {st.session_state.alien}")
+    st.write(f"Description: {st.session_state.job_title}")
+    st.write(f"Planet: {st.session_state.planet}")
+    st.write(f"Language: {st.session_state.language}")
+    st.write(f"Teleportation: {st.session_state.teleportation}")
+    minting()    
+    st.markdown("## Transaction Receipt:")
+    st.write(dict(st.session_state.receipt))
+    st.write("You can view the pinned metadata file with the following IPFS Gateway Link:")
+    st.markdown(f"[Artwork IPFS Gateway Link](https://gateway.pinata.cloud/ipfs/{st.session_state.artwork_ipfs_hash})")
+    st.markdown(f"[Artwork IPFS Image Link](https://gateway.pinata.cloud/ipfs/{st.session_state.token_json['image']})")
+
+
+
+        
+
+
+
+
+
+
 
 
 

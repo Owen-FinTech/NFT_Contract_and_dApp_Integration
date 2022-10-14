@@ -39,33 +39,3 @@ def pin_json_to_ipfs(json):
     ipfs_hash = r.json()["IpfsHash"]
     return ipfs_hash
 
-# Helper functions to pin files and json to Pinata
-def pin_artwork(alien, img_byte_arr, job_title, planet, language, teleportation):
-    
-    # Pin the file to IPFS with Pinata
-    ipfs_file_hash = pin_file_to_ipfs(img_byte_arr.getvalue())
-
-    # Build a token metadata file for the artwork
-    token_json = {
-        "name": alien,
-        "description": job_title,
-        "image": ipfs_file_hash,
-        "attributes": [
-            {
-            "trait_type": "Planet", 
-            "value": planet
-            }, 
-            {
-            "trait_type": "Language", 
-            "value": language
-            }, 
-            {
-            "trait_type": "Teleportation", 
-            "value": teleportation
-            }]}
-    json_data = convert_data_to_json(token_json)
-
-    # Pin the json to IPFS with Pinata
-    json_ipfs_hash = pin_json_to_ipfs(json_data)
-
-    return json_ipfs_hash, token_json

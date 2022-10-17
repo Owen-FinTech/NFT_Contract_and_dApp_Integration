@@ -208,7 +208,34 @@ if mint_nft:
     st.markdown(f"[Artwork IPFS Image Link](https://gateway.pinata.cloud/ipfs/{st.session_state.token_json['image']})")
 
 
+# Collect active wallet addresses from smart contract
+all_owners = []
+owner_filter = contract.events.NewAlien.createFilter(fromBlock=0)
+owners = owner_filter.get_all_entries()
+if owners:
+    for owner in owners:
+        owner_dictionary = dict(owner)
+        all_owners += [owner_dictionary['args']['owner']]
+all_owners = set(all_owners)
 
+# Streamlit sidebar
+with st.sidebar:
+    st.title("View Minted NFTs")
+    option = st.selectbox('Select Account...', list(all_owners))
+    if st.button("Display NFT's linked to this address"):
+        account_filter = contract.events.NewAlien.createFilter(
+            fromBlock=0, 
+            argument_filters={'owner':Web3.toChecksumAddress(option).lower()}
+        )
+        tokens = account_filter.get_all_entries()
+        if tokens:
+            for token in tokens:
+                token_dictionary = dict(token)
+                token_URI = token_dictionary['args']['tokenURI']
+                st.write(token_URI)
+                #st.image(f'https://ipfs.io/ipfs/{token_URI}')
+        else:
+            st.write("This account owns no tokens")
         
 
 

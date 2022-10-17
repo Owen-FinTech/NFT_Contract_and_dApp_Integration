@@ -8,6 +8,7 @@ import warnings
 from PIL import Image
 from pathlib import Path
 from web3 import Web3
+import urllib
 
 ## Importing functions:
 from pinata import convert_data_to_json, pin_file_to_ipfs, pin_json_to_ipfs
@@ -232,8 +233,10 @@ with st.sidebar:
             for token in tokens:
                 token_dictionary = dict(token)
                 token_URI = token_dictionary['args']['tokenURI']
-                st.write(token_URI)
-                #st.image(f'https://ipfs.io/ipfs/{token_URI}')
+                response = urllib.urlopen(f'https://gateway.pinata.cloud/ipfs/{token_URI}')
+                data = json.loads(response.read())
+                image_hash = data["image"]
+                st.image(f'https://gateway.pinata.cloud/ipfs/{image_hash}')
         else:
             st.write("This account owns no tokens")
         

@@ -22,9 +22,17 @@ The image/art work for the NFT is also AI generated and is pulled using Stabilit
 
 The application is run through Streamlit and the attributes and image data are held while the application is interacted with using the session state tool. 
 
-While interacting with the Streamlit application the user can select their wallet via the ‘Select Your account” drop down and generate a mintable NFT artwork by clicking the “Generate New NFT Preview” button. Upon clicking this button, the Stability API will generate an artwork and the APIs linked to generatorfun.com will produce a series of attributes for the NFT. This image is then collated in a file and pinned to IPFS with Pinata, the attributes are compiled into a metadata JSON file and pinned to IPFS with Pinata.
+While interacting with the Streamlit application the user can select their wallet via the ‘Select Your account” drop down.
+
+![aiaa_lauch_screen](https://user-images.githubusercontent.com/103994978/196907191-e825849b-aff1-4c76-bda9-f74554f539f6.png)
+
+They can then generate a mintable NFT artwork by clicking the “Generate New NFT Preview” button. Upon clicking this button, the Stability API will generate an artwork and the APIs linked to generatorfun.com will produce a series of attributes for the NFT. This image is then collated in a file and pinned to IPFS with Pinata, the attributes are compiled into a metadata JSON file and pinned to IPFS with Pinata.
+
+![aiaa_preview](https://user-images.githubusercontent.com/103994978/196907632-1630317c-9f06-457f-a60a-615537f179df.png)
 
 Once happy with their generated artwork the user can then mint the NFT by clicking the “Mint This NFT (0.01 ETH + Gas)” button which will mint the NFT into the users wallet and charge the user 0.01 ETH for the ‘Alien Animal’ and an additional charge for the associated gas fees.
 
 The user can visualise all ‘Alien Animals’ currently in their wallet by interacting with the side bar “View Minted NFTs”. The user can select their chosen wallet via the “Select Account…” drop down and can generate thumbnail of their held NFTs by clicking the “Display NFT’s linked to this address” button.
+
+![view_minted_nfts](https://user-images.githubusercontent.com/103994978/196907862-6af4b883-9467-45ee-a44f-13a1085e9141.png)
 

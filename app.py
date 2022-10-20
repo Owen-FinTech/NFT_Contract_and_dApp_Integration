@@ -1,14 +1,12 @@
 import requests
 import json
 import streamlit as st
-import getpass
 import io
 import os
 import warnings
 from PIL import Image
 from pathlib import Path
 from web3 import Web3
-import urllib
 
 ## Importing functions:
 from pinata import convert_data_to_json, pin_file_to_ipfs, pin_json_to_ipfs
@@ -28,7 +26,7 @@ w3 = Web3(Web3.HTTPProvider(os.getenv("WEB3_PROVIDER_URI")))
 def load_contract():
 
     # Load the contract ABI
-    with open(Path('contracts/compiled/contract_abi.json')) as f:
+    with open(Path('contract_abi.json')) as f:
         contract_abi = json.load(f)
 
     # Set the contract address (this is the address of the deployed contract)
@@ -98,6 +96,7 @@ def generate_alien():
             if st.session_state.artifact.type == generation.ARTIFACT_IMAGE:
                 st.session_state.the_image = Image.open(io.BytesIO(st.session_state.artifact.binary))
 
+                # Saving the image:                    
                 st.session_state.the_image.save('result.png')
 
                 # Saving instance of image as bytes-like object:
@@ -107,9 +106,9 @@ def generate_alien():
 
 def get_attributes():
     # Getting the attributes: 
+    # Title and strip ensures capitalization and no trailing spaces:
     job_title_request = requests.get(job_title_url)
     job_title = job_title_request.json()
-    # Title and strip ensures capitalization and no trailing spaces:
     st.session_state.job_title = job_title.title().strip()
 
     planet_request = requests.get(planet_url)
@@ -170,17 +169,35 @@ def minting():
 
     artwork_uri = f"ipfs://{st.session_state.artwork_ipfs_hash}"
 
-    tx_hash = contract.functions.registerAIAA(
-        address,
+    # Build transaction with the registerAIAA function from our contract:
+    tx = contract.functions.registerAIAA(
+        Web3.toChecksumAddress(st.session_state.account),
         artwork_uri
-    ).transact({'from': address, 'gas': 1000000, 'value': 10000000000000000})
-    st.session_state.receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+    ).buildTransaction({'from': st.session_state.account, 'gas': 1000000, 'value': 10000000000000000, 'nonce': w3.eth.get_transaction_count(st.session_state.account)})
+    
+    # Signing the transaction, sending the raw transaction and getting the receipt:
+    signed_txn = w3.eth.account.signTransaction(tx, private_key = st.session_state.key)
+    ret = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
+    st.session_state.receipt = w3.eth.waitForTransactionReceipt(ret)
 
-accounts = w3.eth.accounts
-address = st.selectbox("Select Your Account:", options=accounts)
+# Preloading 3 accounts that have Goerli test ETH on them:
+accounts = ('0x8683d05977d6294784ca1C0aBBEc343ceccFb249', '0x98C56F45e6eF9b6a497367BAb18BA068e40642aB', '0xeC25944b7CCa67D883f92BDDCfBd2B888670ae66')
 
+# Selecting the account:
+st.session_state.account = st.selectbox("Select Account:", options = accounts)
+
+# Associating private key with each account selected:
+if st.session_state.account == '0x8683d05977d6294784ca1C0aBBEc343ceccFb249':
+    st.session_state.key = os.getenv("KEY_1")
+elif st.session_state.account == '0x98C56F45e6eF9b6a497367BAb18BA068e40642aB':
+    st.session_state.key = os.getenv("KEY_2")
+else:
+    st.session_state.key = os.getenv("KEY_3")
+
+# Generate button:
 generate_button = st.button("Generate New NFT Preview")
 
+# Mint button:
 mint_nft = st.button("Mint This NFT (0.01 ETH + Gas)")
 
 if generate_button:
@@ -233,12 +250,15 @@ with st.sidebar:
             for token in tokens:
                 token_dictionary = dict(token)
                 token_URI = token_dictionary['args']['tokenURI']
-                response = urllib.urlopen(f'https://gateway.pinata.cloud/ipfs/{token_URI}')
-                data = json.loads(response.read())
+                url = f'https://gateway.pinata.cloud/ipfs/{token_URI[7:]}'
+                response_data = requests.get(url)
+                reponse_content = response_data.content
+                data = response_data.json()
                 image_hash = data["image"]
                 st.image(f'https://gateway.pinata.cloud/ipfs/{image_hash}')
         else:
             st.write("This account owns no tokens")
+        
         
 
 
